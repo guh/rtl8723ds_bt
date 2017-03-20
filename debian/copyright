@@ -1,0 +1,24 @@
+Format: http://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: rtl8723ds-bt
+Upstream-Contact: Simon Stürz <simon.stuerz@guh.io>
+Download: https://github.com/guh/rtl8723ds_bt
+Source: https://github.com/guh/rtl8723ds_bt.git
+
+License: GPL-2+
+ On Debian systems, the complete text of the GNU General
+ Public License can be found in `/usr/share/common-licenses/GPL-2'.
+
+Files: debian/*
+License: GPL-2+
+Copyright: 2017, Simon Stürz <simon.stuerz@guh.io>
+
+Files: scripts/*
+License: GPL-2+
+Copyright: 2017, Simon Stürz <simon.stuerz@guh.io>
+
+Files: hciattach*
+License: GPL-2+
+Copyright: 2000-2001,  Qualcomm Incorporated
+           2002-2003,  Maxim Krasnyansky <maxk@qualcomm.com>
+           2002-2010,  Marcel Holtmann <marcel@holtmann.org>
+

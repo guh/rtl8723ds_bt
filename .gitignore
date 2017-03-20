@@ -1,3 +1,4 @@
 *.o
 debian/rtl8723ds-bt/
+debian/files
 rtk_hciattach

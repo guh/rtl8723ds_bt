@@ -1,7 +1,7 @@
 #!/usr/bin/make -f
 # -*- makefile -*-
 
-export DH_VERBOSE=1
+#export DH_VERBOSE=1
 
 include /usr/share/dpkg/buildflags.mk
 
@@ -15,11 +15,11 @@ export CC
 PACKAGE = rtl8723ds-bt
 
 %:
-	dh $@ --with-systemd
-
+	dh $@
 
 override_dh_auto_build:
 	$(MAKE) CC=$(CC) PREFIX=$(PWD)/debian/$(PACKAGE)
 
 override_dh_auto_install:
+	dh_install --fail-missing
 	$(MAKE) CC=$(CC) PREFIX=$(PWD)/debian/$(PACKAGE) install
