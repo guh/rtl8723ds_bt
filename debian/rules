@@ -1,0 +1,25 @@
+#!/usr/bin/make -f
+# -*- makefile -*-
+
+export DH_VERBOSE=1
+
+include /usr/share/dpkg/buildflags.mk
+
+DEB_BUILD_GNU_TYPE := $(shell dpkg-architecture -qDEB_BUILD_GNU_TYPE)
+DEB_HOST_GNU_TYPE  := $(shell dpkg-architecture -qDEB_HOST_GNU_TYPE)
+ifneq ($(DEB_HOST_GNU_TYPE),$(DEB_BUILD_GNU_TYPE))
+	CC=$(DEB_HOST_GNU_TYPE)-gcc
+endif
+
+export CC
+PACKAGE = rtl8723ds-bt
+
+%:
+	dh $@ --with-systemd
+
+
+override_dh_auto_build:
+	$(MAKE) CC=$(CC) PREFIX=$(PWD)/debian/$(PACKAGE)
+
+override_dh_auto_install:
+	$(MAKE) CC=$(CC) PREFIX=$(PWD)/debian/$(PACKAGE) install

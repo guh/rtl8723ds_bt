@@ -1,0 +1,137 @@
+#!/bin/bash -e
+
+# This script starts the bluetooth firmware for rtl8723ds-bt
+# The module hci_uart has to be available (default since linux 3.13)
+# The default serial interface for the bluetoothd device is /dev/ttyS2
+
+# Note: according to C.H.I.P Pro datasheet V 1.0 the
+#       Bluetooth reset pin (BT-RST-N) is
+#       GPIO PB4 := (1 * 32) + 4 = 36
+
+RESETGPIO=36
+SERIALDEVICE=/dev/ttyS2
+LOGFILE=/var/log/rtl-bluetooth.log
+
+#------------------------------------------------------------------------------------------
+function usage() {
+    cat <<EOF
+Usage: $(basename $0) [OPTIONS]
+
+OPTIONS:
+  -s, --serial       Serial device of the bluetooth hardware (default: /dev/ttyS2)
+  -h, --help         Show this message
+
+EOF
+}
+
+#------------------------------------------------------------------------------------------
+function printLog() {
+   TIMESTAMP=`date +%Y.%m.%d-%H:%M:%S`
+   echo "${TIMESTAMP} | $1" 2>&1 | tee ${LOGFILE}
+}
+
+#------------------------------------------------------------------------------------------
+function checkLoadModule() {
+    if lsmod | grep "hci_uart" &> /dev/null; then
+        printLog "[+] Module hci_uart already loaded"
+        return 0
+    else
+        printLog "[+] Loading module hci_uart"
+        MODULE=modprobe hci_uart 2>&1 | tee ${LOGFILE}
+        if $?; then
+            printLog "[+] Error: could not load module hci_uart"
+            return 1
+        else
+            printLog "[+] Module hci_uart loaded successfully"
+            return 0
+        fi
+    fi
+}
+
+#------------------------------------------------------------------------------------------
+function onFailure() {
+    printLog "Error: $1"
+    if [ ! -f /sys/class/gpio/gpio${RESETGPIO} ]; then
+        echo ${RESETGPIO} > /sys/class/gpio/unexport
+    fi
+
+    exit $2
+}
+
+#------------------------------------------------------------------------------------------
+function resetBluetooth() {
+    # Note: according to C.H.I.P Pro datasheet V 1.0 the
+    #       Bluetooth reset pin (BT-RST-N) is
+    #       GPIO PB4 := (1 * 32) + 4 = 36
+
+    printLog "[+] Reset bluetooth chip"
+    if [ ! -f /sys/class/gpio/gpio${RESETGPIO} ]; then
+        # Export GPIO
+        echo ${RESETGPIO} > /sys/class/gpio/export || onFailure "Could not export reset GPIO ${RESETGPIO}" $?
+    fi
+
+    # Configure GPIO as output
+    echo out > /sys/class/gpio/gpio${RESETGPIO}/direction || onFailure "Could not set direction of reset GPIO ${RESETGPIO}" $?
+
+    # Toggle GPIO
+    echo 1 > /sys/class/gpio/gpio${RESETGPIO}/value || onFailure "Could not set value of reset GPIO ${RESETGPIO}" $?
+    sleep 0.1
+    echo 0 > /sys/class/gpio/gpio${RESETGPIO}/value || onFailure "Could not set value of reset GPIO ${RESETGPIO}" $?
+    sleep 0.1
+    echo 1 > /sys/class/gpio/gpio${RESETGPIO}/value || onFailure "Could not set value of reset GPIO ${RESETGPIO}" $?
+    sleep 0.1
+
+    # Reconfigure GPIO as input
+    echo in > /sys/class/gpio/gpio${RESETGPIO}/direction || onFailure "Could not set direction of reset GPIO ${RESETGPIO}" $?
+
+    # Unexport
+    echo ${RESETGPIO} > /sys/class/gpio/unexport || onFailure "Could not export reset GPIO ${RESETGPIO}" $?
+
+    printLog "[+] Bluetooth reset sucessfully"
+}
+
+#------------------------------------------------------------------------------------------
+# main
+#------------------------------------------------------------------------------------------
+
+# Check parameters
+while [ "$1" != "" ]; do
+    case $1 in
+        -s | --serial )
+            SERIALDEVICE=$2
+            shift;;
+        -h | --help )
+            usage && exit 0;;
+        * )
+            usage && exit 1;;
+    esac
+    shift
+done
+
+# Check root permissions
+if [ ${UID} -ne 0 ]; then
+    printLog "Please start the script as root."
+    exit 1
+fi
+
+# Load and check the hci_uart module
+if ! checkLoadModule; then exit 1; fi
+
+# Check firmware
+if [ ! -f /lib/firmware/rtlbt/rtl8723d_fw ]; then
+    printLog "[+] Error: could not find firmware file /lib/firmware/rtlbt/rtl8723d_fw"
+    exit 1
+fi
+
+# Check firmware configuration
+if [ ! -f /lib/firmware/rtlbt/rtl8723d_config ]; then
+    printLog "[+] Error: could not find firmware file /lib/firmware/rtlbt/rtl8723d_config"
+    exit 1
+fi
+
+# Reset the chip
+resetBluetooth
+
+# Attach bluetooth
+printLog "[+] Starting bluetooth using ${SERIALDEVICE}..."
+/sbin/rtk_hciattach -n -s 115200 ${SERIALDEVICE} rtk_h5 2>&1 | tee ${LOGFILE}

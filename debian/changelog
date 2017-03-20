@@ -1,0 +1,5 @@
+rtl8723ds-bt (1.0) jessie; urgency=medium
+
+  * Initial release.
+
+ -- Simon Stürz <simon.stuerz@guh.io>  Mon, 20 Mar 2017 19:20:05 +0100

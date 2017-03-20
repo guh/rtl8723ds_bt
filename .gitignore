@@ -1,0 +1,3 @@
+*.o
+debian/rtl8723ds-bt/
+rtk_hciattach
