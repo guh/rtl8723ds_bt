@@ -2,6 +2,7 @@
 *.debhelper.log
 *.debhelper
 *.substvars
+*-build-stamp
 debian/rtl8723ds-bt/
 debian/files
 rtk_hciattach
