@@ -1,4 +1,10 @@
-rtl8723ds-bt (1.0) unstable; urgency=medium
+rtl8723ds-bt (1.0-1) stable; urgency=medium
+
+  * Update service file
+
+ -- Simon Stürz <simon.stuerz@guh.io>  Tue, 21 Mar 2017 12:00:23 +0100
+
+rtl8723ds-bt (1.0-0) stable; urgency=medium
 
   * Initial release.
 
