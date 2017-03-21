@@ -1,4 +1,7 @@
 *.o
+*.debhelper.log
+*.debhelper
+*.substvars
 debian/rtl8723ds-bt/
 debian/files
 rtk_hciattach

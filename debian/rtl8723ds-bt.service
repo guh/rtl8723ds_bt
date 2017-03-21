@@ -1,0 +1,10 @@
+[Unit]
+Description=Realtek rtl8723ds bluetooth hciattach
+ConditionPathExists=/dev/ttyS2
+
+[Service]
+Type=simple
+ExecStart=/sbin/start-rtl-bluetooth -s /dev/ttyS2
+
+[Install]
+WantedBy=bluetooth.target
