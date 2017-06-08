@@ -5,4 +5,4 @@ Description=Realtek rtl8723ds bluetooth hciattach
 ExecStart=/sbin/start-rtl-bluetooth
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=bluetooth.target

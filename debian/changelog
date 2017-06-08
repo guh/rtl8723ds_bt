@@ -1,3 +1,9 @@
+rtl8723ds-bt (1.0-2) stable; urgency=medium
+
+  * Remove logrotate
+
+ -- Simon Stürz <simon.stuerz@guh.io>  Thu, 08 Jun 2017 13:18:32 +0200
+
 rtl8723ds-bt (1.0-1) stable; urgency=medium
 
   * Update service file

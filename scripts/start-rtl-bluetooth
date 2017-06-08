@@ -10,7 +10,6 @@
 
 RESETGPIO=36
 SERIALDEVICE=/dev/ttyS2
-LOGFILE=/var/log/rtl-bluetooth.log
 
 #------------------------------------------------------------------------------------------
 function usage() {
@@ -25,24 +24,18 @@ EOF
 }
 
 #------------------------------------------------------------------------------------------
-function printLog() {
-   TIMESTAMP=`date +%Y.%m.%d-%H:%M:%S`
-   echo "${TIMESTAMP} | $1" 2>&1 | tee ${LOGFILE}
-}
-
-#------------------------------------------------------------------------------------------
 function checkLoadModule() {
     if lsmod | grep "hci_uart" &> /dev/null; then
-        printLog "[+] Module hci_uart already loaded"
+        echo "[+] Module hci_uart already loaded"
         return 0
     else
-        printLog "[+] Loading module hci_uart"
-        MODULE=modprobe hci_uart 2>&1 | tee ${LOGFILE}
+        echo "[+] Loading module hci_uart"
+        MODULE=modprobe hci_uart
         if $?; then
-            printLog "[+] Error: could not load module hci_uart"
+            echo "[+] Error: could not load module hci_uart"
             return 1
         else
-            printLog "[+] Module hci_uart loaded successfully"
+            echo "[+] Module hci_uart loaded successfully"
             return 0
         fi
     fi
@@ -50,7 +43,7 @@ function checkLoadModule() {
 
 #------------------------------------------------------------------------------------------
 function onFailure() {
-    printLog "Error: $1"
+    echo "Error: $1"
     if [ ! -f /sys/class/gpio/gpio${RESETGPIO} ]; then
         echo ${RESETGPIO} > /sys/class/gpio/unexport
     fi
@@ -64,7 +57,7 @@ function resetBluetooth() {
     #       Bluetooth reset pin (BT-RST-N) is
     #       GPIO PB4 := (1 * 32) + 4 = 36
 
-    printLog "[+] Reset bluetooth chip"
+    echo "[+] Reset bluetooth chip"
     if [ ! -f /sys/class/gpio/gpio${RESETGPIO} ]; then
         # Export GPIO
         echo ${RESETGPIO} > /sys/class/gpio/export || onFailure "Could not export reset GPIO ${RESETGPIO}" $?
@@ -87,7 +80,7 @@ function resetBluetooth() {
     # Unexport
     echo ${RESETGPIO} > /sys/class/gpio/unexport || onFailure "Could not export reset GPIO ${RESETGPIO}" $?
 
-    printLog "[+] Bluetooth reset sucessfully"
+    echo "[+] Bluetooth reset sucessfully"
 }
 
 #------------------------------------------------------------------------------------------
@@ -110,7 +103,7 @@ done
 
 # Check root permissions
 if [ ${UID} -ne 0 ]; then
-    printLog "Please start the script as root."
+    echo "Please start the script as root."
     exit 1
 fi
 
@@ -119,13 +112,13 @@ if ! checkLoadModule; then exit 1; fi
 
 # Check firmware
 if [ ! -f /lib/firmware/rtlbt/rtl8723d_fw ]; then
-    printLog "[+] Error: could not find firmware file /lib/firmware/rtlbt/rtl8723d_fw"
+    echo "[+] Error: could not find firmware file /lib/firmware/rtlbt/rtl8723d_fw"
     exit 1
 fi
 
 # Check firmware configuration
 if [ ! -f /lib/firmware/rtlbt/rtl8723d_config ]; then
-    printLog "[+] Error: could not find firmware file /lib/firmware/rtlbt/rtl8723d_config"
+    echo "[+] Error: could not find firmware file /lib/firmware/rtlbt/rtl8723d_config"
     exit 1
 fi
 
@@ -133,5 +126,5 @@ fi
 resetBluetooth
 
 # Attach bluetooth
-printLog "[+] Starting bluetooth using ${SERIALDEVICE}..."
-/sbin/rtk_hciattach -n -s 115200 ${SERIALDEVICE} rtk_h5 2>&1 | tee ${LOGFILE}
+echo "[+] Starting bluetooth using ${SERIALDEVICE}..."
+/sbin/rtk_hciattach -n -s 115200 ${SERIALDEVICE} rtk_h5

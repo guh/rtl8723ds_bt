@@ -1,4 +1,3 @@
-/etc/logrotate.d/
 /lib/firmware/rtlbt/
 /lib/systemd/system/
 /sbin/
