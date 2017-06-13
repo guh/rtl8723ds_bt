@@ -1,3 +1,9 @@
+rtl8723ds-bt (1.0-3) stable; urgency=medium
+
+  * Fix module loading
+
+ -- Simon Stürz <simon.stuerz@guh.io>  Tue, 13 Jun 2017 15:11:30 +0200
+
 rtl8723ds-bt (1.0-2) stable; urgency=medium
 
   * Remove logrotate

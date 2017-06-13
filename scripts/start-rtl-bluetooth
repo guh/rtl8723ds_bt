@@ -30,8 +30,9 @@ function checkLoadModule() {
         return 0
     else
         echo "[+] Loading module hci_uart"
-        MODULE=modprobe hci_uart
-        if $?; then
+        modprobe hci_uart
+        LOADING=$?
+        if [[ ${LOADING} != 0 ]]; then
             echo "[+] Error: could not load module hci_uart"
             return 1
         else
