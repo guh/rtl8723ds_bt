@@ -16,11 +16,13 @@ install:
 	mkdir -p $(PREFIX)/sbin
 	cp -p firmware/rtl8723d_fw $(FW_DIR)
 	cp -p firmware/rtl8723d_config $(FW_DIR)
+	cp -p firmware/rtl8723d_config_1000000_noflow $(FW_DIR)
 	cp -p rtk_hciattach $(PREFIX)/sbin/
 	cp -p scripts/start-rtl-bluetooth $(PREFIX)/sbin/
 
 uninstall:
 	rm -f $(FW_DIR)/rtl8723d_fw
 	rm -f $(FW_DIR)/rtl8723d_config
+	rm -f $(FW_DIR)/rtl8723d_config_1000000_noflow
 	rm -f $(PREFIX)/sbin/rtk_hciattach
 	rm -f $(PREFIX)/sbin/start-rtl-bluetooth

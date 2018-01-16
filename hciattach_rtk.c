@@ -1,24 +1,33 @@
-/**
-*Copyright @ Realtek Semiconductor Corp. All Rights Reserved.
-*
-
-*Module Name:
-*   hciattach_rtk.c
-*
-*Description:
-*   H4/H5 specific initialization
-*
-*Revision History:
-*      Date         Version         Author                  Comment
-*   ----------   ---------       ---------------       -----------------------
-*   2013-06-06      1.0.0           gordon_yang             Create
-*   2013-06-18      1.0.1           lory_xu                 add support for multi fw
-*   2013-06-21      1.0.2           gordon_yang             add timeout for get version cmd
-*   2013-07-01      1.0.3           lory_xu                 close file handle
-*   2013-07-01      2.0             champion_chen           add IC check
-*   2013-12-16      2.1             champion_chen           fix bug in Additional packet number
-*   2013-12-25      2.2             champion_chen           open host flow control after send last fw packet
-*/
+/*
+ *  Copyright (C) 2013 Realtek Semiconductor Corp.
+ *
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  Module Name:
+ *     hciattach_rtk.c
+ *
+ *  Description:
+ *     H4/H5 specific initialization
+ *
+ *  Revision History:
+ *      Date         Version      Author             Comment
+ *     ----------   ---------    ---------------    -----------------------
+ *     2013-06-06    1.0.0        gordon_yang        Create
+ *     2013-06-18    1.0.1        lory_xu            add support for multi fw
+ *     2013-06-21    1.0.2        gordon_yang        add timeout for get version cmd
+ *     2013-07-01    1.0.3        lory_xu            close file handle
+ *     2013-07-01    2.0          champion_chen      add IC check
+ *     2013-12-16    2.1          champion_chen      fix bug in Additional packet number
+ *     2013-12-25    2.2          champion_chen      open host flow control after send last fw packet
+ */
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
@@ -1079,12 +1088,15 @@ static void hci_recv_frame(struct sk_buff *skb)
 		}
 
 		rtk_hw_cfg.rx_index = skb->data[6];
-		if (rtk_hw_cfg.rx_index & 0x80)
-			rtk_hw_cfg.rx_index &= ~0x80;
 
 		RS_DBG("rtk_hw_cfg.rx_index %d\n", rtk_hw_cfg.rx_index);
-		if (rtk_hw_cfg.rx_index == rtk_hw_cfg.total_num)
+
+		/* Download fw/config done */
+		if (rtk_hw_cfg.rx_index & 0x80) {
+			rtk_hw_cfg.rx_index &= ~0x80;
 			rtk_hw_cfg.link_estab_state = H5_ACTIVE;
+		}
+
 		skb_free(skb);
 	} else {
 		RS_ERR("receive packets in active state");
@@ -1479,12 +1491,11 @@ static int hci_download_patch(int dd, int index, uint8_t * data, int len,
 		memcpy(cp.data, data, len);
 	}
 
-	int nValue = rtk_hw_cfg.total_num | 0x80;
-	if (index == nValue) {
-		rtk_hw_cfg.tx_index = rtk_hw_cfg.total_num;
-	} else {
+	if (index & 0x80)
+		rtk_hw_cfg.tx_index = index & 0x7f;
+	else
 		rtk_hw_cfg.tx_index = index;
-	}
+
 	hcipatch[2] = len + 1;
 	memcpy(hcipatch + 3, &cp, len + 1);
 
@@ -2160,6 +2171,7 @@ static int rtk_download_fw_config(int fd, RT_U8 * buf, size_t filesize,
 	uint8_t iTotalIndex = 0;
 	uint8_t iCmdSentNum = 0;
 	unsigned char *bufpatch;
+	uint8_t i, j;
 
 	iEndIndex = (uint8_t) ((filesize - 1) / PATCH_DATA_FIELD_MAX_SIZE);
 	iLastPacketLen = (filesize) % PATCH_DATA_FIELD_MAX_SIZE;
@@ -2187,26 +2199,34 @@ static int rtk_download_fw_config(int fd, RT_U8 * buf, size_t filesize,
 
 	bufpatch = buf;
 
-	int i;
 	for (i = 0; i <= iTotalIndex; i++) {
-		if (iCurIndex < iEndIndex) {
-			iCurIndex = iCurIndex & 0x7F;
+		/* Index will roll over when it reaches 0x80. */
+		if (i > 0x7f)
+			j = (i & 0x7f) + 1;
+		else
+			j = i;
+
+		if (i < iEndIndex) {
+			iCurIndex = j;
 			iCurLen = PATCH_DATA_FIELD_MAX_SIZE;
-		} else if (iCurIndex == iEndIndex) {	//send last data packet
-			if (iCurIndex == iTotalIndex)
-				iCurIndex = iCurIndex | 0x80;
+		} else if (i == iEndIndex) {
+			/* Send last data packets */
+			if (i == iTotalIndex)
+				iCurIndex = j | 0x80;
 			else
-				iCurIndex = iCurIndex & 0x7F;
+				iCurIndex = j;
 			iCurLen = iLastPacketLen;
-		} else if (iCurIndex < iTotalIndex) {
-			iCurIndex = iCurIndex & 0x7F;
+		} else if (i < iTotalIndex) {
+			/* Send additional packets */
+			iCurIndex = j;
 			bufpatch = NULL;
 			iCurLen = 0;
 			RS_DBG("Send additional packet %u", iCurIndex);
-		} else {	//send end packet
+		} else {
+			/* Send end packet */
+			iCurIndex = j | 0x80;
 			bufpatch = NULL;
 			iCurLen = 0;
-			iCurIndex = iCurIndex | 0x80;
 			RS_DBG("Send end packet %u", iCurIndex);
 		}
 
@@ -2214,28 +2234,26 @@ static int rtk_download_fw_config(int fd, RT_U8 * buf, size_t filesize,
 			RS_DBG("Send FW last command");
 
 		if (proto == HCI_UART_H4) {
-			iCurIndex =
-			    hci_download_patch_h4(fd, iCurIndex, bufpatch,
-						  iCurLen);
-			if ((iCurIndex != i) && (i != rtk_hw_cfg.total_num)) {
-				RS_DBG
-				    ("index mismatch i:%d iCurIndex:%d, patch fail\n",
-				     i, iCurIndex);
+			iCurIndex = hci_download_patch_h4(fd, iCurIndex,
+							  bufpatch, iCurLen);
+			if ((iCurIndex != j) && (i != rtk_hw_cfg.total_num)) {
+				RS_DBG(
+				  "index mismatch j %d, iCurIndex:%d, fail\n",
+				  j, iCurIndex);
 				return -1;
 			}
 		} else if (proto == HCI_UART_3WIRE) {
-			if (hci_download_patch
-			    (fd, iCurIndex, bufpatch, iCurLen, ti) < 0)
+			if (hci_download_patch(fd, iCurIndex, bufpatch, iCurLen,
+					       ti) < 0)
 				return -1;
 		}
 
 		if (iCurIndex < iEndIndex) {
 			bufpatch += PATCH_DATA_FIELD_MAX_SIZE;
 		}
-		iCurIndex++;
 	}
 
-	//set last ack packet down
+	/* Set last ack packet down */
 	if (proto == HCI_UART_3WIRE) {
 		rtk_send_pure_ack_down(fd);
 	}
@@ -3015,3 +3033,4 @@ int rtk_post(int fd, int proto, struct termios *ti)
 
 	return 0;
 }
+
